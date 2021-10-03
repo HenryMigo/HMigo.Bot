@@ -1,4 +1,6 @@
-﻿using HMigo.Bot.Constants;
+﻿using Hmigo.Bot.Game;
+using Hmigo.Bot.Game.Models;
+using HMigo.Bot.Constants;
 using System;
 using TwitchLib.Client;
 using TwitchLib.Client.Enums;
@@ -13,6 +15,8 @@ namespace HMigo.Bot
     public class Bot
     {
         readonly TwitchClient client;
+        readonly GameManager gameManager;
+        Data gameData;
 
         public Bot(TwitchSettings twitchSettings)
         {
@@ -25,6 +29,23 @@ namespace HMigo.Bot
             };
 
             var customClient = new WebSocketClient(clientOptions);
+
+            // Need to setup game
+            gameManager = new GameManager();
+            gameData = gameManager.SetupGame();
+
+            if (gameData == null)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Could not load game data");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Loaded game data");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
 
             client = new TwitchClient(customClient);
             client.Initialize(credential, twitchSettings.Channel);
@@ -51,7 +72,6 @@ namespace HMigo.Bot
 
         private void Client_OnJoinedChannel(object sender, OnJoinedChannelArgs e)
         {
-            Console.WriteLine("Hey guys! I am a bot connected via TwitchLib!");
             client.SendMessage(e.Channel, "Hey guys! I am a bot connected via TwitchLib!");
         }
 
@@ -62,15 +82,30 @@ namespace HMigo.Bot
 
         private void CheckAndRunCommands(OnMessageReceivedArgs e)
         {
-            switch (e.ChatMessage.Message.ToLowerInvariant())
+            var commandLetter = e.ChatMessage.Message.ToLowerInvariant()[0];
+
+            if (commandLetter == '!')
             {
-                case BotCommands.AboutBot:
-                    AboutBotCommand(e);
-                    break;
-                case BotCommands.ClearChat:
-                    ClearChat(e);
-                    break;
+                var command = e.ChatMessage.Message.Remove(0, 1);
+                switch (command)
+                {
+                    case BotCommands.AboutBot:
+                        AboutBotCommand(e);
+                        break;
+                    case BotCommands.ClearChat:
+                        ClearChat(e);
+                        break;
+                    case BotCommands.JoinGame:
+                        JoinGame(e);
+                        break;
+                }
             }
+        }
+
+        private void JoinGame(OnMessageReceivedArgs e)
+        {
+            var message = gameManager.JoinGame(e.ChatMessage.Username, gameData: ref gameData);
+            client.SendMessage(e.ChatMessage.Channel, $"@{message}");
         }
 
         private void ClearChat(OnMessageReceivedArgs e)
@@ -85,7 +120,7 @@ namespace HMigo.Bot
         private void AboutBotCommand(OnMessageReceivedArgs e)
         {
             Console.WriteLine($"{e.ChatMessage.Username} asked about the bot...");
-            client.SendMessage(e.ChatMessage.Channel, $"@{e.ChatMessage.Username} I am running on a Raspberry Pi using .NET 5! How sweet is that!");
+            client.SendMessage(e.ChatMessage.Channel, $"@{e.ChatMessage.Username} I am running on a Raspberry Pi using .NET 6! How sweet is that!");
         }
 
         private void Client_OnWhisperReceived(object sender, OnWhisperReceivedArgs e)

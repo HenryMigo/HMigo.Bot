@@ -86,7 +86,9 @@ namespace HMigo.Bot
 
             if (commandLetter == '!')
             {
-                var command = e.ChatMessage.Message.Remove(0, 1);
+                var listOfWords = e.ChatMessage.Message.Split('!')[1];
+                var command = listOfWords.Split(' ')[0];
+
                 switch (command)
                 {
                     case BotCommands.AboutBot:
@@ -98,7 +100,19 @@ namespace HMigo.Bot
                     case BotCommands.JoinGame:
                         JoinGame(e);
                         break;
+                    case BotCommands.BanBadPerson:
+                        BanBadPerson(e);
+                        break;
                 }
+            }
+        }
+
+        private void BanBadPerson(OnMessageReceivedArgs e)
+        {
+            if (e.ChatMessage.IsBroadcaster || e.ChatMessage.IsModerator)
+            {
+                var personToBan = e.ChatMessage.Message.ToLowerInvariant().Split(' ')[1];
+                client.BanUser(e.ChatMessage.Channel, personToBan, "Why you got to be so rude...");
             }
         }
 
